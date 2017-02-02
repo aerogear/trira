@@ -9,12 +9,22 @@
   "scripts": {
     "test": "npm test"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kpiwko/trira.git"
+  },
+  "author": "Karel Piwko <kpiwko@redhat.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/kpiwko/trira/issues"
+  },
+  "homepage": "https://github.com/kpiwko/trira#readme",  
   "keywords": [
     "jira",
     "trello"
   ],
   "author": "kpiwko@redhat.com",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "dependencies": {
     "jira-client": "^4.2.0",
     "prettyjson": "^1.2.1",
