@@ -1,0 +1,24 @@
+{
+  "name": "trira",
+  "version": "0.0.1",
+  "description": "A tool to move cards from Trello to JIRA",
+  "main": "index.js",
+  "bin": {
+    "trira": "./index.js"
+  },
+  "scripts": {
+    "test": "npm test"
+  },
+  "keywords": [
+    "jira",
+    "trello"
+  ],
+  "author": "kpiwko@redhat.com",
+  "license": "ISC",
+  "dependencies": {
+    "jira-client": "^4.2.0",
+    "prettyjson": "^1.2.1",
+    "trello": "^0.7.0",
+    "yargs": "^6.6.0"
+  }
+}
