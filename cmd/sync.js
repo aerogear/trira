@@ -103,7 +103,7 @@ const getTrelloCards = function(boardName, listNames, key, token) {
         return Promise.reject(`There are no lists on associated boards starting with any of ${listName.join(', ')}`)
       }
 
-      console.log(`There are ${matchingLists.length} that contain tasks to be synced.`)
+      console.log(`There are ${matchingLists.length} lists that contain tasks to be synced.`)
 
       return Promise.resolve(matchingLists)
     })
