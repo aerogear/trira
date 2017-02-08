@@ -22,10 +22,19 @@ const builder = function (yargs) {
       describe: 'Trello token',
       demand: true
     })
+    .option('dry-run', {
+      describe: 'Do not push anything to JIRA',
+      default: false
+    })
     .option('lists', {
       describe: 'Lists to be fetched',
       default: ['MUST PER RELEASE', 'MUST PER BUILD'],
       defaultDescription: 'Default lists to be fetched from boards'
+    })
+    .option('card-regexp', {
+      describe: 'Cards name regular expression to be fetched',
+      default: '.*',
+      defaultDescription: 'Fetch all cards by default'
     })
     .option('jira-host', {
       describe: 'Jira host to connect to',
@@ -46,7 +55,7 @@ const builder = function (yargs) {
 }
 
 // FIXME move to separate module
-const getTrelloCards = function(boardName, listNames, key, token) {
+const getTrelloCards = function(boardName, listNames, cardRegexp, key, token) {
 
   const trello = new Trello(key, token)
 
@@ -135,11 +144,15 @@ const getTrelloCards = function(boardName, listNames, key, token) {
     // combine together
     .then(results => {
 
+      const cardNameRegexp = new RegExp(cardRegexp)
+
       const cardLists = results.shift()
       let cards = []
       cardLists.forEach(cardList => {
         cardList.forEach(card => {
-          cards.push(card)
+          if(cardNameRegexp.test(card.name)) {
+            cards.push(card)
+          }
         })
       })
 
@@ -257,8 +270,20 @@ const pushCardsToJira = function (cards, epic, jiraHost, jiraUser, jiraPassword)
 
 const handler = function(argv) {
 
-  getTrelloCards(argv.board, argv.lists, argv.trelloKey, argv.trelloToken)
-    .then(cards => {
+  const cards = getTrelloCards(argv.board, argv.lists, argv.cardRegexp, argv.trelloKey, argv.trelloToken)
+    .catch(err => {
+      console.log(err)
+      process.exit(1)
+    })
+
+  if(argv.dryRun) {
+    cards.then(cards => {
+      console.log(`Dry run, otherwise would create ${cards.length} issues in ${argv.epic}`)
+      console.log(prettyjson.render(cards))
+    })
+  }
+  else {
+    cards.then(cards => {
       return pushCardsToJira(cards, argv.epic, argv.jiraHost, argv.jiraUser, argv.jiraPassword)
     })
     .then(createdIssues => {
@@ -268,12 +293,9 @@ const handler = function(argv) {
 lists in ${argv.board} of Trello.
 Following issues that have been created:
     - ${createdIssueKeys.map(key => `https://${argv.jiraHost}/browse/${key}`).join(`\n    - `)}`)
+    })
+  }
 
-    })
-    .catch(err => {
-      console.log(err)
-      process.exit(1)
-    })
 }
 
 module.exports = {command, describe, builder, handler}
