@@ -1,6 +1,6 @@
 {
   "name": "trira",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A tool to move cards from Trello to JIRA",
   "main": "index.js",
   "bin": {
