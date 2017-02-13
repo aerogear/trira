@@ -28,7 +28,7 @@
   "dependencies": {
     "jira-client": "^4.2.0",
     "prettyjson": "^1.2.1",
-    "trello": "^0.7.0",
+    "trello": "kpiwko/trello#handle-http-429",
     "yargs": "^6.6.0"
   }
 }
