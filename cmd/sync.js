@@ -191,8 +191,18 @@ const transformCardToHumanReadable = function(card) {
     })
   }
 
+  const spRegexp = /^\((\d+(?:\.\d+)?)\)\s*(.*)$/
+  const cardNameAndSp = spRegexp.exec(card.name)
+
+  let summary = card.name
+  let storyPoints = null
+  if(cardNameAndSp) {
+    [, storyPoints, summary] = cardNameAndSp
+  }
+
   return {
-    summary: card.name,
+    summary,
+    storyPoints,
     description: card.desc,
     cardLink: card.shortUrl,
     labels: card.labels ? card.labels.map(l => l.name) : [],
@@ -232,6 +242,10 @@ const transformToJiraFormat = function (parentEpic, card) {
 
   if(stepsToReproduce) {
     issue.fields['customfield_12310183'] = `${card.details[stepsToReproduce].map((value, index) => `${index+1}. ${value}`).join(`\n`)}`
+  }
+
+  if(card.storyPoints) {
+    issue.fields['customfield_12310243'] = parseFloat(card.storyPoints)
   }
 
 
