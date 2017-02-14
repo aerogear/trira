@@ -44,7 +44,7 @@ trira help sync
 
 ## Assumptions
 
-* The first checklist in Trello board, that starts with name _Steps_ will act as Steps to Reproduce field in JIRA
+* All checklists are included in JIRA description field
 * Labels on cards in Trello are used to label issues in JIRA
 * It is current not possible to sync data from JIRA to Trello
 * Tool ignores existing issue, hence every run creates new issues - instead of updating them
