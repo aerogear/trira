@@ -23,12 +23,17 @@ npm install -g trira
 
 Or, use development copy by
 ```
-git clone https://github.com/kpiwko/trira.git && cd trira && npm link
+git clone https://github.com/kpiwko/trira.git && cd trira && npm install && npm link
 ```
 
-Afterward, you run:
+First, provide credentials for Trello and JIRA
 ```
-trira <trello-board-name> <jira-epic-name> --trello-key=<trello-key> --trello-token=<trello-token> --jira-user=<jira-user> --jira-password=<jira-password>
+trira target --trello-key=<trello-key> --trello-token=<trello-token> --jira-user=<jira-user> --jira-password=<jira-password>
+```
+
+Afterwards, you run:
+```
+trira sync <trello-board-names> <jira-epic-name>
 ```
 
 There are further options available, such as which Trello columns will be transferred or JIRA host with default values. For more details,

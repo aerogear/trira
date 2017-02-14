@@ -3,25 +3,19 @@
 const Trello = require('trello')
 const Jira = require('jira-client')
 const prettyjson = require('prettyjson')
+const config = require('../lib/config')
+const logger = require('../lib/logger')
 
-const command = 'sync <board> <epic>'
+const command = 'sync <board-regexp> <epic>'
 const describe = 'Sync Trello Board with particular Epic in JIRA'
 const builder = function (yargs) {
 
   const HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE
 
   return yargs
-    .usage(`usage: $0 sync <board> <epic> [options]
+    .usage(`usage: $0 sync <board-regexp> <epic> [options]
 
-  Synces cards in a Trello Board <board> with JIRA Epic <epic>`)
-    .option('trello-key', {
-      describe: 'Trello API key',
-      demand: true
-    })
-    .option('trello-token', {
-      describe: 'Trello token',
-      demand: true
-    })
+  Synces cards in a Trello Board <board-regexp> with JIRA Epic <epic>`)
     .option('dry-run', {
       describe: 'Do not push anything to JIRA',
       default: false
@@ -29,25 +23,13 @@ const builder = function (yargs) {
     .option('lists', {
       describe: 'Lists to be fetched',
       default: ['MUST PER RELEASE', 'MUST PER BUILD'],
-      defaultDescription: 'Default lists to be fetched from boards'
+      defaultDescription: 'Default lists to be fetched from boards',
+      type: 'array'
     })
     .option('card-regexp', {
       describe: 'Cards name regular expression to be fetched',
       default: '.*',
       defaultDescription: 'Fetch all cards by default'
-    })
-    .option('jira-host', {
-      describe: 'Jira host to connect to',
-      default: 'issues.jboss.org',
-      defaultDescription: 'JBoss.org JIRA'
-    })
-    .option('jira-user', {
-      describe: 'JIRA username',
-      demand: true
-    })
-    .option('jira-password', {
-      describe: 'JIRA password',
-      demand: true
     })
     .demand(2)
     .help('help')
@@ -55,9 +37,9 @@ const builder = function (yargs) {
 }
 
 // FIXME move to separate module
-const getTrelloCards = function(boardName, listNames, cardRegexp, key, token) {
+const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig) {
 
-  const trello = new Trello(key, token)
+  const trello = new Trello(trelloConfig.key, trelloConfig.token)
 
   return trello.getMember('me')
     // find all organizations which current user is a member of
@@ -75,14 +57,17 @@ const getTrelloCards = function(boardName, listNames, cardRegexp, key, token) {
       }, [])
       return Promise.all(orgBoards)
     })
-    // find boards that start with `boardName`
+    // find boards that match with `boardRegexp`
     .then(boards => {
+      const boardNameRegexp = new RegExp(boardRegexp)
       const matchingBoards = boards.reduce((matchingBoards, orgs) => {
-        return matchingBoards.concat(orgs.filter(board => board.name.startsWith(boardName)))
+        return matchingBoards.concat(orgs.filter(board => boardNameRegexp.test(board.name)))
       }, [])
-      if(boards.length === 0) {
-        return Promise.reject(`There is no board starting with '${boardName}' associated with that user`)
+      if(matchingBoards.length === 0) {
+        return Promise.reject(`There is no board matching '${boardRegexp}' associated with that user`)
       }
+
+      logger.trace({boards: matchingBoards.map(b => b.name)}, `Found ${matchingBoards.length} boards matching ${boardRegexp}`)
       return Promise.resolve(matchingBoards)
     })
     // find all lists in boards
@@ -101,6 +86,7 @@ const getTrelloCards = function(boardName, listNames, cardRegexp, key, token) {
       const matchingLists = lists.reduce((matchingLists, lists) => {
         return matchingLists.concat(lists.filter(list => {
           let found = false
+          // find any match with provided list names
           listNames.forEach(name => {
               found = found || list.name.startsWith(name)
           })
@@ -112,7 +98,7 @@ const getTrelloCards = function(boardName, listNames, cardRegexp, key, token) {
         return Promise.reject(`There are no lists on associated boards starting with any of ${listName.join(', ')}`)
       }
 
-      console.log(`There are ${matchingLists.length} lists that contain tasks to be synced.`)
+      logger.trace({lists: matchingLists.map(l => l.name)}, `There are ${matchingLists.length} lists that contain tasks to be synced.`)
 
       return Promise.resolve(matchingLists)
     })
@@ -129,7 +115,7 @@ const getTrelloCards = function(boardName, listNames, cardRegexp, key, token) {
     // make sure that we attach checklists as well
     .then(cards => {
 
-      console.log('Fetching checklists for cards')
+      logger.trace(`Populating card checklists`)
 
       const checkLists = cards.reduce((checkLists, cards) => {
         cards.forEach(card => {
@@ -221,10 +207,7 @@ const transformToJiraFormat = function (parentEpic, card) {
         id: parentEpic.fields.project.id
       },
       summary: card.summary,
-      description: `${card.description}
-
-      [Trello link|${card.cardLink}]
-      `,
+      description: `${card.description}\n[Trello link|${card.cardLink}]`,
       fixVersions: parentEpic.fields.fixVersions ? parentEpic.fields.fixVersions.map(fv => {
         return {
           id: fv.id
@@ -236,13 +219,10 @@ const transformToJiraFormat = function (parentEpic, card) {
     }
   }
 
-  const stepsToReproduce = Object.keys(card.details).find(list => {
-    return list.toLowerCase().startsWith('Steps'.toLowerCase())
-  })
-
-  if(stepsToReproduce) {
-    issue.fields['customfield_12310183'] = `${card.details[stepsToReproduce].map((value, index) => `${index+1}. ${value}`).join(`\n`)}`
-  }
+  // add all checklists to description
+  issue.fields.description += Object.keys(card.details).reduce((details, listName) => {
+        return `${details}\nh3. ${listName}\n${card.details[listName].map((value, index) => `${index+1}. ${value}`).join(`\n`)}`
+      }, '')
 
   if(card.storyPoints) {
     issue.fields['customfield_12310243'] = parseFloat(card.storyPoints)
@@ -252,17 +232,16 @@ const transformToJiraFormat = function (parentEpic, card) {
   return issue
 }
 
-const pushCardsToJira = function (cards, epic, jiraHost, jiraUser, jiraPassword) {
+const pushCardsToJira = function (cards, epic, jiraConfig) {
 
-   const jira = new Jira({
-     protocol: 'https',
-     host: jiraHost,
-     port: 443,
-     username: jiraUser,
-     password: jiraPassword,
-     apiVersion: 2,
-     strictSSL: true
-   })
+  const config = Object.assign({
+    protocol: 'https',
+    port: 443,
+    apiVersion: 2,
+    strictSSL: true
+  }, jiraConfig)
+
+   const jira = new Jira(config)
 
    console.log(`Fetching epic ${epic} from JIRA to act as template for issues`)
    return jira.findIssue(epic)
@@ -284,31 +263,49 @@ const pushCardsToJira = function (cards, epic, jiraHost, jiraUser, jiraPassword)
 
 const handler = function(argv) {
 
-  const cards = getTrelloCards(argv.board, argv.lists, argv.cardRegexp, argv.trelloKey, argv.trelloToken)
-    .catch(err => {
-      console.log(err)
-      process.exit(1)
-    })
-
   if(argv.dryRun) {
-    cards.then(cards => {
-      console.log(`Dry run, otherwise would create ${cards.length} issues in ${argv.epic}`)
-      console.log(prettyjson.render(cards))
-    })
+    console.log('-- Dry run -- ')
   }
-  else {
-    cards.then(cards => {
-      return pushCardsToJira(cards, argv.epic, argv.jiraHost, argv.jiraUser, argv.jiraPassword)
-    })
-    .then(createdIssues => {
-      const createdIssueKeys = createdIssues.map(issue => issue.key)
 
-      console.log(`Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.lists.join(', ')}
-lists in ${argv.board} of Trello.
-Following issues that have been created:
-    - ${createdIssueKeys.map(key => `https://${argv.jiraHost}/browse/${key}`).join(`\n    - `)}`)
+  config.readConfiguration()
+    .then(configuration => {
+
+      if(!configuration.trello) {
+        console.error('Configuration for Trello has not been provided, please run `trira target <jiraHost>` first')
+        process.exit(1)
+      }
+      if(!configuration.jira) {
+        console.error('Configuration for Trello has not been provided, please run `trira target <jiraHost>` first')
+        process.exit(1)
+      }
+
+      const cards = getTrelloCards(argv.boardRegexp, argv.lists, argv.cardRegexp, configuration.trello)
+        .catch(err => {
+          console.log(err)
+          process.exit(1)
+        })
+
+      if(argv.dryRun) {
+        cards.then(cards => {
+          console.log(`Dry run, otherwise would create ${cards.length} issues in ${argv.epic}`)
+          console.log(prettyjson.render(cards))
+        })
+      }
+      else {
+        cards.then(cards => {
+          return pushCardsToJira(cards, argv.epic, configuration.jira)
+        })
+        .then(createdIssues => {
+          const createdIssueKeys = createdIssues.map(issue => issue.key)
+
+          console.log(`Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.lists.join(', ')}
+    lists in ${argv.board} of Trello.
+    Following issues that have been created:\n    - ${createdIssueKeys.map(key => `https://${configuration.jira.host}/browse/${key}`).join(`\n    - `)}`)
+        })
+      }
     })
-  }
+
+
 
 }
 

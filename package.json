@@ -1,6 +1,6 @@
 {
   "name": "trira",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "A tool to move cards from Trello to JIRA",
   "main": "index.js",
   "bin": {
@@ -13,22 +13,24 @@
     "type": "git",
     "url": "git+https://github.com/kpiwko/trira.git"
   },
-  "author": "Karel Piwko <kpiwko@redhat.com>",
+  "author": "kpiwko@redhat.com",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/kpiwko/trira/issues"
   },
-  "homepage": "https://github.com/kpiwko/trira#readme",  
+  "homepage": "https://github.com/kpiwko/trira#readme",
   "keywords": [
     "jira",
     "trello"
   ],
-  "author": "kpiwko@redhat.com",
-  "license": "Apache-2.0",
   "dependencies": {
+    "bunyan": "^1.8.5",
     "jira-client": "^4.2.0",
     "prettyjson": "^1.2.1",
     "trello": "kpiwko/trello#handle-http-429",
     "yargs": "^6.6.0"
+  },
+  "engines": {
+    "node": ">=6"
   }
 }
