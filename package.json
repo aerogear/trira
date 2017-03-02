@@ -1,6 +1,6 @@
 {
   "name": "trira",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A tool to move cards from Trello to JIRA",
   "main": "index.js",
   "bin": {
@@ -24,10 +24,11 @@
     "trello"
   ],
   "dependencies": {
-    "bunyan": "^1.8.5",
+    "common-tags": "^1.4.0",
     "jira-client": "^4.2.0",
     "prettyjson": "^1.2.1",
     "trello": "kpiwko/trello#handle-http-429",
+    "winston": "^2.3.1",
     "yargs": "^6.6.0"
   },
   "engines": {

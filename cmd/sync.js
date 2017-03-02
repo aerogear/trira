@@ -3,6 +3,7 @@
 const Trello = require('trello')
 const Jira = require('jira-client')
 const prettyjson = require('prettyjson')
+const stripIndent = require('common-tags').stripIndent
 const config = require('../lib/config')
 const logger = require('../lib/logger')
 
@@ -67,7 +68,7 @@ const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig
         return Promise.reject(`There is no board matching '${boardRegexp}' associated with that user`)
       }
 
-      logger.trace({boards: matchingBoards.map(b => b.name)}, `Found ${matchingBoards.length} boards matching ${boardRegexp}`)
+      logger.debug(`Found ${matchingBoards.length} boards matching ${boardRegexp}`, {boards: matchingBoards.map(b => b.name)})
       return Promise.resolve(matchingBoards)
     })
     // find all lists in boards
@@ -98,7 +99,7 @@ const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig
         return Promise.reject(`There are no lists on associated boards starting with any of ${listName.join(', ')}`)
       }
 
-      logger.trace({lists: matchingLists.map(l => l.name)}, `There are ${matchingLists.length} lists that contain tasks to be synced.`)
+      logger.debug(`There are ${matchingLists.length} lists that contain tasks to be synced.`, {lists: matchingLists.map(l => l.name)})
 
       return Promise.resolve(matchingLists)
     })
@@ -115,7 +116,7 @@ const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig
     // make sure that we attach checklists as well
     .then(cards => {
 
-      logger.trace(`Populating card checklists`)
+      logger.debug(`Populating card checklists`)
 
       const checkLists = cards.reduce((checkLists, cards) => {
         cards.forEach(card => {
@@ -157,8 +158,6 @@ const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig
       cards = cards.map(card => {
         return transformCardToHumanReadable(card)
       })
-
-      console.log(`There are ${cards.length} to be synced with JIRA`)
 
       return Promise.resolve(cards)
     })
@@ -279,34 +278,34 @@ const handler = function(argv) {
         process.exit(1)
       }
 
-      const cards = getTrelloCards(argv.boardRegexp, argv.lists, argv.cardRegexp, configuration.trello)
+      return getTrelloCards(argv.boardRegexp, argv.lists, argv.cardRegexp, configuration.trello)
+        .then(cards => {
+          logger.debug(`Would create ${cards.length} issues in JIRA`)
+          return Promise.all([Promise.resolve(cards), argv.dryRun ? Promise.resolve([]) : pushCardsToJira(cards, argv.epic, configuration.jira) ])
+        })
+        .then(([cards, issues]) => {
+          const createdIssueKeys = issues.map(issue => issue.key)
+
+          if(argv.dryRun) {
+            console.log('Trello card details')
+            console.log(prettyjson.render(cards))
+            console.log(`Dry-run - otherwise would create ${cards.length} issues linked to ${argv.epic}`)
+          }
+          else {
+            console.log(stripIndent`
+              Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.lists.join(', ')}
+              lists in ${argv.board} of Trello.
+
+              Following issues that have been created:
+                  - ${createdIssueKeys.map(key => `https://${configuration.jira.host}/browse/${key}`).join(`\n    - `)}
+            `)
+          }
+        })
         .catch(err => {
           console.log(err)
           process.exit(1)
         })
-
-      if(argv.dryRun) {
-        cards.then(cards => {
-          console.log(`Dry run, otherwise would create ${cards.length} issues in ${argv.epic}`)
-          console.log(prettyjson.render(cards))
-        })
-      }
-      else {
-        cards.then(cards => {
-          return pushCardsToJira(cards, argv.epic, configuration.jira)
-        })
-        .then(createdIssues => {
-          const createdIssueKeys = createdIssues.map(issue => issue.key)
-
-          console.log(`Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.lists.join(', ')}
-    lists in ${argv.board} of Trello.
-    Following issues that have been created:\n    - ${createdIssueKeys.map(key => `https://${configuration.jira.host}/browse/${key}`).join(`\n    - `)}`)
-        })
-      }
     })
-
-
-
 }
 
 module.exports = {command, describe, builder, handler}

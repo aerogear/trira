@@ -49,3 +49,4 @@ trira help sync
 * It is current not possible to sync data from JIRA to Trello
 * Tool ignores existing issue, hence every run creates new issues - instead of updating them
 * Tool creates issues where provided jira user acts are reporter
+* Story points are represented in Trello card name - in the beginning as number in parentheses, such as (3)
