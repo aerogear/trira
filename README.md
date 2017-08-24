@@ -33,7 +33,7 @@ trira target <jiraHost> --trello-key=<trello-key> --trello-token=<trello-token> 
 
 Afterwards, you run:
 ```
-trira sync <trello-board-names> <jira-epic-name>
+trira sync <trello-board-regexp> <jira-epic-name>
 ```
 
 There are further options available, such as which Trello columns will be synced or a card name regular expression for more granular filtering. 

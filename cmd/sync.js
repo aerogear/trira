@@ -16,19 +16,19 @@ const builder = function (yargs) {
   return yargs
     .usage(`usage: $0 sync <board-regexp> <epic> [options]
 
-  Synces cards in a Trello Board <board-regexp> with JIRA Epic <epic>`)
+  Synces cards in a Trello Board <board-regexp> (case insensitive) with JIRA Epic <epic>`)
     .option('dry-run', {
       describe: 'Do not push anything to JIRA',
       default: false
     })
-    .option('lists', {
-      describe: 'Lists to be fetched',
-      default: ['MUST PER RELEASE', 'MUST PER BUILD'],
-      defaultDescription: 'Default lists to be fetched from boards',
+    .option('list-regexp', {
+      describe: 'Lists to be fetched. Case insensitive.',
+      default: 'MUST PER (RELEASE|BUILD)',
+      defaultDescription: 'MUST PER RELEASE and MUST PER BUILD lists to be fetched from boards',
       type: 'array'
     })
     .option('card-regexp', {
-      describe: 'Cards name regular expression to be fetched',
+      describe: 'Cards name regular expression to be fetched. Case insensitive',
       default: '.*',
       defaultDescription: 'Fetch all cards by default'
     })
@@ -38,7 +38,7 @@ const builder = function (yargs) {
 }
 
 // FIXME move to separate module
-const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig) {
+const getTrelloCards = function(boardRegexp, listRegexp, cardRegexp, trelloConfig) {
 
   const trello = new Trello(trelloConfig.key, trelloConfig.token)
 
@@ -60,7 +60,7 @@ const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig
     })
     // find boards that match with `boardRegexp`
     .then(boards => {
-      const boardNameRegexp = new RegExp(boardRegexp)
+      const boardNameRegexp = new RegExp(boardRegexp, 'i')
       const matchingBoards = boards.reduce((matchingBoards, orgs) => {
         return matchingBoards.concat(orgs.filter(board => boardNameRegexp.test(board.name)))
       }, [])
@@ -82,21 +82,13 @@ const getTrelloCards = function(boardRegexp, listNames, cardRegexp, trelloConfig
     // find all the list in boards that match name
     .then(lists => {
 
-      listNames = Array.isArray(listNames) ? listNames: [listNames]
-
+      const listNameRegexp = new RegExp(listRegexp, 'i')
       const matchingLists = lists.reduce((matchingLists, lists) => {
-        return matchingLists.concat(lists.filter(list => {
-          let found = false
-          // find any match with provided list names
-          listNames.forEach(name => {
-              found = found || list.name.startsWith(name)
-          })
-          return found
-        }))
+        return matchingLists.concat(lists.filter(list => listNameRegexp.test(list.name)))
       }, [])
 
       if(matchingLists.length === 0) {
-        return Promise.reject(`There are no lists on associated boards starting with any of ${listName.join(', ')}`)
+        return Promise.reject(`There are no lists on associated boards matching '${listRegexp} within matching organization boards`)
       }
 
       logger.debug(`There are ${matchingLists.length} lists that contain tasks to be synced.`, {lists: matchingLists.map(l => l.name)})
@@ -278,7 +270,7 @@ const handler = function(argv) {
         process.exit(1)
       }
 
-      return getTrelloCards(argv.boardRegexp, argv.lists, argv.cardRegexp, configuration.trello)
+      return getTrelloCards(argv.boardRegexp, argv.listRegexp, argv.cardRegexp, configuration.trello)
         .then(cards => {
           logger.debug(`Would create ${cards.length} issues in JIRA`)
           return Promise.all([Promise.resolve(cards), argv.dryRun ? Promise.resolve([]) : pushCardsToJira(cards, argv.epic, configuration.jira) ])
@@ -293,7 +285,7 @@ const handler = function(argv) {
           }
           else {
             console.log(stripIndent`
-              Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.lists.join(', ')}
+              Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.listRegexp}
               lists in ${argv.board} of Trello.
 
               Following issues that have been created:
