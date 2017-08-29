@@ -1,7 +1,7 @@
 'use strict'
 
-const Trello = require('trello')
 const Jira = require('jira-client')
+const trelloCards = require('../lib/trello')
 const prettyjson = require('prettyjson')
 const stripIndent = require('common-tags').stripIndent
 const config = require('../lib/config')
@@ -16,7 +16,7 @@ const builder = function (yargs) {
   return yargs
     .usage(`usage: $0 sync <board-regexp> <epic> [options]
 
-  Synces cards in a Trello Board <board-regexp> (case insensitive) with JIRA Epic <epic>`)
+  Syncs cards in a Trello Board <board-regexp> (case insensitive) with JIRA Epic <epic>`)
     .option('dry-run', {
       describe: 'Do not push anything to JIRA',
       default: false
@@ -35,156 +35,6 @@ const builder = function (yargs) {
     .demand(2)
     .help('help')
     .wrap(null)
-}
-
-// FIXME move to separate module
-const getTrelloCards = function(boardRegexp, listRegexp, cardRegexp, trelloConfig) {
-
-  const trello = new Trello(trelloConfig.key, trelloConfig.token)
-
-  return trello.getMember('me')
-    // find all organizations which current user is a member of
-    .then(member => {
-      if(member.idOrganizations.lenght === 0) {
-        return Promise.reject('This user is not a member of any organization')
-      }
-      return Promise.resolve(member.idOrganizations)
-    })
-    // list all boards in the organizations
-    .then(organizations => {
-      const orgBoards = organizations.reduce((orgBoards, org) => {
-        orgBoards.push(trello.getOrgBoards(org))
-        return orgBoards
-      }, [])
-      return Promise.all(orgBoards)
-    })
-    // find boards that match with `boardRegexp`
-    .then(boards => {
-      const boardNameRegexp = new RegExp(boardRegexp, 'i')
-      const matchingBoards = boards.reduce((matchingBoards, orgs) => {
-        return matchingBoards.concat(orgs.filter(board => boardNameRegexp.test(board.name)))
-      }, [])
-      if(matchingBoards.length === 0) {
-        return Promise.reject(`There is no board matching '${boardRegexp}' associated with that user`)
-      }
-
-      logger.debug(`Found ${matchingBoards.length} boards matching ${boardRegexp}`, {boards: matchingBoards.map(b => b.name)})
-      return Promise.resolve(matchingBoards)
-    })
-    // find all lists in boards
-    .then(boards => {
-      const lists = boards.reduce((lists, board) => {
-        lists.push(trello.getListsOnBoard(board.id))
-        return lists
-      }, [])
-      return Promise.all(lists)
-    })
-    // find all the list in boards that match name
-    .then(lists => {
-
-      const listNameRegexp = new RegExp(listRegexp, 'i')
-      const matchingLists = lists.reduce((matchingLists, lists) => {
-        return matchingLists.concat(lists.filter(list => listNameRegexp.test(list.name)))
-      }, [])
-
-      if(matchingLists.length === 0) {
-        return Promise.reject(`There are no lists on associated boards matching '${listRegexp} within matching organization boards`)
-      }
-
-      logger.debug(`There are ${matchingLists.length} lists that contain tasks to be synced.`, {lists: matchingLists.map(l => l.name)})
-
-      return Promise.resolve(matchingLists)
-    })
-    // query all lists for cards
-    .then(lists => {
-
-      const cards = lists.reduce((cards, list) => {
-        cards.push(trello.getCardsOnList(list.id))
-        return cards
-      }, [])
-
-      return Promise.all(cards)
-    })
-    // make sure that we attach checklists as well
-    .then(cards => {
-
-      logger.debug(`Populating card checklists`)
-
-      const checkLists = cards.reduce((checkLists, cards) => {
-        cards.forEach(card => {
-          checkLists.push(trello.getChecklistsOnCard(card.id))
-        })
-        return checkLists
-      }, [ Promise.resolve(cards) ] )
-
-      return Promise.all(checkLists)
-    })
-    // fixme should probably do the same with attachements?
-    // combine together
-    .then(results => {
-
-      const cardNameRegexp = new RegExp(cardRegexp)
-
-      const cardLists = results.shift()
-      let cards = []
-      cardLists.forEach(cardList => {
-        cardList.forEach(card => {
-          if(cardNameRegexp.test(card.name)) {
-            cards.push(card)
-          }
-        })
-      })
-
-      // process checklists and add them to cards
-      results.forEach(checklists => {
-        checklists.forEach(checklist => {
-            const addChecklistTo = cards.filter(card => card.id === checklist.idCard)
-            addChecklistTo.forEach(card => {
-              card.checklists = card.checklists ? card.checklists : {}
-              card.checklists[checklist.name] = checklist
-            })
-        })
-      })
-
-      // remap to human readable representation
-      cards = cards.map(card => {
-        return transformCardToHumanReadable(card)
-      })
-
-      return Promise.resolve(cards)
-    })
-    .catch(err => {
-      console.error(`Unable to fetch cards from Trello`)
-      return Promise.reject(err)
-    })
-}
-
-const transformCardToHumanReadable = function(card) {
-
-  let details = {}
-  if(card.checklists && Object.keys(card.checklists).length > 0) {
-    Object.keys(card.checklists).forEach(name => {
-      details[name] = card.checklists[name].checkItems.map(item => item.name)
-    })
-  }
-
-  const spRegexp = /^\((\d+(?:\.\d+)?)\)\s*(.*)$/
-  const cardNameAndSp = spRegexp.exec(card.name)
-
-  let summary = card.name
-  let storyPoints = null
-  if(cardNameAndSp) {
-    [, storyPoints, summary] = cardNameAndSp
-  }
-
-  return {
-    summary,
-    storyPoints,
-    description: card.desc,
-    cardLink: card.shortUrl,
-    labels: card.labels ? card.labels.map(l => l.name) : [],
-    details
-  }
 }
 
 const transformToJiraFormat = function (parentEpic, card) {
@@ -266,13 +116,13 @@ const handler = function(argv) {
         process.exit(1)
       }
       if(!configuration.jira) {
-        console.error('Configuration for Trello has not been provided, please run `trira target <jiraHost>` first')
+        console.error('Configuration for Jira has not been provided, please run `trira target <jiraHost>` first')
         process.exit(1)
       }
 
-      return getTrelloCards(argv.boardRegexp, argv.listRegexp, argv.cardRegexp, configuration.trello)
+      return trelloCards.get(configuration.trello, argv.boardRegexp, argv.listRegexp, argv.cardRegexp)
         .then(cards => {
-          logger.debug(`Would create ${cards.length} issues in JIRA`)
+          logger.debug(`${argv.dryRun ? 'Would' : 'Will'} create ${cards.length} issues in JIRA`)
           return Promise.all([Promise.resolve(cards), argv.dryRun ? Promise.resolve([]) : pushCardsToJira(cards, argv.epic, configuration.jira) ])
         })
         .then(([cards, issues]) => {
