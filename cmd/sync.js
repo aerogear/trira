@@ -3,6 +3,7 @@
 const Jira = require('jira-client')
 const trelloCards = require('../lib/trello')
 const prettyjson = require('prettyjson')
+const objectPath = require("object-path");
 const stripIndent = require('common-tags').stripIndent
 const config = require('../lib/config')
 const logger = require('../lib/logger')
@@ -37,7 +38,7 @@ const builder = function (yargs) {
     .wrap(null)
 }
 
-const transformToJiraFormat = function (parentEpic, card) {
+const transformToJiraFormat = function (parentEpic, epicField, storyPointField, card) {
 
   const issue = {
     fields: {
@@ -56,7 +57,7 @@ const transformToJiraFormat = function (parentEpic, card) {
       }) : [],
       labels: ['test-case'].concat(card.labels),
       // epic link
-      customfield_12311140: parentEpic.key
+      [epicField.id]: parentEpic.key
     }
   }
 
@@ -65,8 +66,8 @@ const transformToJiraFormat = function (parentEpic, card) {
         return `${details}\nh3. ${listName}\n${card.details[listName].map((value, index) => `${index+1}. ${value}`).join(`\n`)}`
       }, '')
 
-  if(card.storyPoints) {
-    issue.fields['customfield_12310243'] = parseFloat(card.storyPoints)
+  if(storyPointField && card.storyPoints) {
+    issue.fields[storyPointField.id] = parseFloat(card.storyPoints)
   }
 
 
@@ -79,26 +80,41 @@ const pushCardsToJira = function (cards, epic, jiraConfig) {
     protocol: 'https',
     port: 443,
     apiVersion: 2,
-    strictSSL: true
   }, jiraConfig)
 
-   const jira = new Jira(config)
+  const jira = new Jira(config)
 
-   console.log(`Fetching epic ${epic} from JIRA to act as template for issues`)
-   return jira.findIssue(epic)
-     .then(epic => {
+  console.log(`Fetching epic ${epic} from JIRA to act as template for issues`)
+  return Promise.all([jira.listFields(), jira.findIssue(epic)])
+    .then(([fields, epic]) => {
 
-       if(epic.fields.issuetype.name !== 'Epic') {
-         return Promise.reject(`Issue ${epic} is not an epic in JIRA`)
-       }
+      const epicField = fields.find(f => {
+        // 'com.pyxis.greenhopper.jira:gh-epic-link',
+        return objectPath.get(f, 'schema.custom', '').match(/gh-epic-link/i) !== null
+      })
 
-       const newIssues = []
-       cards.forEach(card => {
-         newIssues.push(jira.addNewIssue(transformToJiraFormat(epic, card)))
-       })
+      const storyPointsField = fields.find(f => {
+        return objectPath.get(f, 'name', '').match('/story point/i') !== null
+      })
 
-       return Promise.all(newIssues)
-     })
+      if(!epicField) {
+        return Promise.reject('JIRA does not support Greenhopper Epic field')
+      }
+
+      if(epic.fields.issuetype.name !== 'Epic') {
+        return Promise.reject(`Issue ${epic.key} is not an epic in JIRA`)
+      }
+      return Promise.all([Promise.resolve(epic), Promise.resolve(epicField), Promise.resolve(storyPointsField)])
+    })
+    .then(([parentEpic, epicField, storyPointsField]) => {
+
+      const newIssues = []
+      cards.forEach(card => {
+        newIssues.push(jira.addNewIssue(transformToJiraFormat(parentEpic, epicField, storyPointsField, card)))
+      })
+
+      return Promise.all(newIssues)
+    })
 }
 
 
@@ -135,11 +151,10 @@ const handler = function(argv) {
           }
           else {
             console.log(stripIndent`
-              Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.listRegexp}
-              lists in ${argv.board} of Trello.
+Created ${createdIssueKeys.length} issues in epic ${argv.epic} based on content of ${argv.listRegexp} lists in ${argv.boardRegexp} boards of Trello.
 
-              Following issues that have been created:
-                  - ${createdIssueKeys.map(key => `https://${configuration.jira.host}/browse/${key}`).join(`\n    - `)}
+Following issues that have been created:
+  - ${createdIssueKeys.map(key => `https://${configuration.jira.host}/browse/${key}`).join(`\n  - `)}
             `)
           }
         })
