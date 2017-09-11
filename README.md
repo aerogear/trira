@@ -7,7 +7,7 @@ provided Epic.
 
 * Node.js v6 or newer
 * Trello API key and [Trello token](https://developers.trello.com/get-started/start-building)
-* JIRA instance with Epic support
+* JIRA instance with Greenhopper Epic support
 * JIRA user and password
 
 ## Usage
@@ -28,7 +28,7 @@ git clone https://github.com/kpiwko/trira.git && cd trira && npm install && npm 
 
 First, provide credentials for Trello and JIRA. For example, a JIRA host could be _issues.jboss.org_.
 ```
-trira target <jiraHost> --trello-key=<trello-key> --trello-token=<trello-token> --jira-user=<jira-user> --jira-password=<jira-password>
+trira target <jiraHost> --trello-key=<trello-key> --trello-token=<trello-token> --jira-user=<jira-user> --jira-password=<jira-password> [--strict-ssl=true|false]
 ```
 
 Afterwards, you run:
@@ -45,7 +45,7 @@ trira help sync
 ## Assumptions
 
 * All checklists are included in JIRA description field
-* Labels on cards in Trello are used to label issues in JIRA
+* Labels on cards in Trello are used to label issues in JIRA (labels in Trello can't contain spaces)
 * It is current not possible to sync data from JIRA to Trello
 * Tool ignores existing issues, hence every run creates new issues - instead of updating them
 * Tool creates issues where provided jira user acts as reporter
