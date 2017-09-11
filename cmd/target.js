@@ -28,6 +28,11 @@ const builder = function (yargs) {
       describe: 'JIRA password',
       demand: true
     })
+    .option('strict-ssl', {
+      describe: 'Enforce SSL certificates (true/false)',
+      default: 'true',
+      defaultDescription: 'True'
+    })
     .demand(1)
     .help('help')
     .wrap(null)
@@ -39,7 +44,8 @@ const handler = function(argv) {
     jira: {
       host: argv.jiraHost,
       username: argv.jiraUser,
-      password: argv.jiraPassword
+      password: argv.jiraPassword,
+      strictSSL: argv.strictSsl ? argv.strictSsl.match(/true/i) !== null : false
     },
     trello: {
       key: argv.trelloKey,
