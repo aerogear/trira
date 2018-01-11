@@ -13,34 +13,34 @@ provided Epic.
 ## Usage
 
 
-First, create an epic in JIRA that contain correct metadata, namely _Fix Version_. The value will be copied to all issues.
+1. Create an epic in JIRA. If that JIRA contains metadata, namely _Fix Version_,  the value will be copied to all created issues.
 
-Afterwards install the tool via
+2. Install the trira tool:
 
-```
+ ```
 npm install -g trira
 ```
 
-Or, use development copy by
-```
+ To use  development version:
+ ```
 git clone https://github.com/kpiwko/trira.git && cd trira && npm install && npm link
 ```
 
-First, provide credentials for Trello and JIRA. For example, a JIRA host could be _issues.jboss.org_.
-```
+3. Provide credentials for Trello and JIRA. For example, a JIRA host could be _issues.jboss.org_.
+ ```
 trira target <jiraHost> --trello-key=<trello-key> --trello-token=<trello-token> --jira-user=<jira-user> --jira-password=<jira-password> [--strict-ssl=true|false]
 ```
 
-Afterwards, you run:
+4. To create Jiras from all lists in a trello board:
+ ```
+trira sync <trello-board-regexp> <jira-epic-name-or-key> --list-regexp '.*' 
 ```
-trira sync <trello-board-regexp> <jira-epic-name>
-```
-
-There are further options available, such as which Trello columns will be synced or a card name regular expression for more granular filtering. 
-For more details about command usage, please run:
-```
+ There are further options available, such as which Trello columns will be synced or a card name regular expression for more granular filtering. For more details about command usage, run:
+ ```
 trira help sync
 ```
+
+
 
 ## Assumptions
 

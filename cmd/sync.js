@@ -55,7 +55,7 @@ const transformToJiraFormat = function (parentEpic, epicField, storyPointField, 
           id: fv.id
         }
       }) : [],
-      labels: ['test-case'].concat(card.labels),
+      labels: ['trello'].concat(card.labels),
       // epic link
       [epicField.id]: parentEpic.key
     }
