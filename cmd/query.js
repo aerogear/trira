@@ -9,7 +9,7 @@ const config = require('../lib/config')
 const logger = require('../lib/logger')
 
 const command = 'query <board-regexp>'
-const describe = 'Sync Trello Board with particular Epic in JIRA'
+const describe = 'Queries Trello boards for cards matching particular pattern'
 const builder = function (yargs) {
 
   const HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE
