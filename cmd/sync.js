@@ -33,6 +33,10 @@ const builder = function (yargs) {
       default: '.*',
       defaultDescription: 'Fetch all cards by default'
     })
+    .option('add-labels', {
+      describe: 'Comma separated list of labels to be added to JIRA issues',
+      default: undefined
+    })
     .demand(2)
     .help('help')
     .wrap(null)
@@ -55,7 +59,7 @@ const transformToJiraFormat = function (parentEpic, epicField, storyPointField, 
           id: fv.id
         }
       }) : [],
-      labels: ['test-case'].concat(card.labels),
+      labels: card.labels,
       // epic link
       [epicField.id]: parentEpic.key
     }
@@ -136,9 +140,19 @@ const handler = function(argv) {
         process.exit(1)
       }
 
+      // converting comma separated list of labels to array
+      const labels = argv.addLabels === undefined ? [] : new String(argv.addLabels).split(',')
+      
       return trelloCards.get(configuration.trello, argv.boardRegexp, argv.listRegexp, argv.cardRegexp)
         .then(cards => {
           logger.debug(`${argv.dryRun ? 'Would' : 'Will'} create ${cards.length} issues in JIRA`)
+
+          cards.forEach(card => {
+            card.labels = card.labels.concat(labels)
+            // removing duplicates and empty items
+            card.labels = [ ...new Set(card.labels)].filter(String)
+          })
+
           return Promise.all([Promise.resolve(cards), argv.dryRun ? Promise.resolve([]) : pushCardsToJira(cards, argv.epic, configuration.jira) ])
         })
         .then(([cards, issues]) => {
