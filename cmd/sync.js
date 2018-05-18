@@ -1,10 +1,11 @@
 'use strict'
 
-const Jira = require('jira-client')
-const trelloCards = require('../lib/trello')
 const prettyjson = require('prettyjson')
-const objectPath = require("object-path");
+const objectPath = require('object-path')
 const stripIndent = require('common-tags').stripIndent
+const util = require('util')
+const trelloCards = require('../lib/trello')
+const jira = require('../lib/jira')
 const config = require('../lib/config')
 const logger = require('../lib/logger')
 
@@ -80,17 +81,11 @@ const transformToJiraFormat = function (parentEpic, epicField, storyPointField, 
 
 const pushCardsToJira = function (cards, epic, jiraConfig) {
 
-  const config = Object.assign({
-    protocol: 'https',
-    port: 443,
-    apiVersion: 2,
-  }, jiraConfig)
-
-  const jira = new Jira(config)
-
-  console.log(`Fetching epic ${epic} from JIRA to act as template for issues`)
-  return Promise.all([jira.listFields(), jira.findIssue(epic)])
-    .then(([fields, epic]) => {
+  return jira(jiraConfig)
+    .then(jira => {
+      logger.debug('Connected to JIRA')
+      return Promise.all([Promise.resolve(jira), jira.listFields(), jira.findIssue(epic)])
+    }).then(([jira, fields, epic]) => {
 
       const epicField = fields.find(f => {
         // 'com.pyxis.greenhopper.jira:gh-epic-link',
@@ -108,9 +103,10 @@ const pushCardsToJira = function (cards, epic, jiraConfig) {
       if(epic.fields.issuetype.name !== 'Epic') {
         return Promise.reject(`Issue ${epic.key} is not an epic in JIRA`)
       }
-      return Promise.all([Promise.resolve(epic), Promise.resolve(epicField), Promise.resolve(storyPointsField)])
+      logger.debug(`JIRA instance has Epic support and epic has been provided`)
+      return Promise.all([Promise.resolve(jira), Promise.resolve(epic), Promise.resolve(epicField), Promise.resolve(storyPointsField)])
     })
-    .then(([parentEpic, epicField, storyPointsField]) => {
+    .then(([jira, parentEpic, epicField, storyPointsField]) => {
 
       const newIssues = []
       cards.forEach(card => {
@@ -173,9 +169,12 @@ Following issues that have been created:
           }
         })
         .catch(err => {
-          console.log(err)
+          console.error(`Failed to sync issues, ${util.inspect(err)}`)
           process.exit(1)
         })
+    })
+    .catch(error => {
+      console.error('Unable to load Trira configuration file')
     })
 }
 

@@ -22,16 +22,19 @@ const builder = function (yargs) {
     })
     .option('jira-user', {
       describe: 'JIRA username',
-      demand: true
     })
     .option('jira-password', {
       describe: 'JIRA password',
-      demand: true
     })
     .option('strict-ssl', {
       describe: 'Enforce SSL certificates (true/false)',
       default: 'true',
       defaultDescription: 'True'
+    })
+    .option('gss-api', {
+      describe: 'Use GSSAPI to negotiate JIRA credentials (Kerberos ticket)',
+      default: 'false',
+      defaultDescription: 'False'
     })
     .demand(1)
     .help('help')
@@ -45,7 +48,8 @@ const handler = function(argv) {
       host: argv.jiraHost,
       username: argv.jiraUser,
       password: argv.jiraPassword,
-      strictSSL: argv.strictSsl ? argv.strictSsl.match(/true/i) !== null : false
+      strictSSL: argv.strictSsl ? argv.strictSsl.match(/true/i) !== null : false,
+      gssApi: argv.gssApi ? argv.gssApi.match(/true/i) !== null : false, 
     },
     trello: {
       key: argv.trelloKey,

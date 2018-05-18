@@ -1,6 +1,5 @@
 'use strict'
 
-const Jira = require('jira-client')
 const prettyjson = require('prettyjson')
 const json2csv = require('json2csv')
 const stripIndent = require('common-tags').stripIndent
@@ -63,10 +62,6 @@ const handler = function(argv) {
 
       if(!configuration.trello) {
         console.error('Configuration for Trello has not been provided, please run `trira target <jiraHost>` first')
-        process.exit(1)
-      }
-      if(!configuration.jira) {
-        console.error('Configuration for Jira has not been provided, please run `trira target <jiraHost>` first')
         process.exit(1)
       }
 
