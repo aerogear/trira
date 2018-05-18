@@ -1,6 +1,6 @@
 {
   "name": "trira",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A tool to move cards from Trello to JIRA",
   "main": "index.js",
   "bin": {
@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kpiwko/trira.git"
+    "url": "git+https://github.com/aerogear/trira.git"
   },
   "author": "kpiwko@redhat.com",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/kpiwko/trira/issues"
+    "url": "https://github.com/aerogear/trira/issues"
   },
-  "homepage": "https://github.com/kpiwko/trira#readme",
+  "homepage": "https://github.com/aerogear/trira#readme",
   "keywords": [
     "jira",
     "trello"

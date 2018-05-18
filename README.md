@@ -23,7 +23,7 @@ npm install -g trira
 
 To use development version:
 ```
-git clone https://github.com/kpiwko/trira.git && cd trira && npm install && npm link
+git clone https://github.com/aerogear/trira.git && cd trira && npm install && npm link
 ```
 
 3. Provide credentials for Trello and JIRA. For example, a JIRA host could be _issues.jboss.org_.
