@@ -5,6 +5,7 @@ const trelloCards = require('../lib/trello')
 const prettyjson = require('prettyjson')
 const objectPath = require("object-path");
 const stripIndent = require('common-tags').stripIndent
+const markdown2confluence = require("markdown2confluence-cws");
 const config = require('../lib/config')
 const logger = require('../lib/logger')
 
@@ -53,7 +54,7 @@ const transformToJiraFormat = function (parentEpic, epicField, storyPointField, 
         id: parentEpic.fields.project.id
       },
       summary: card.summary,
-      description: `${card.description}\n[Trello link|${card.cardLink}]`,
+      description: `${markdown2confluence(card.description)}\n\n[Trello link|${card.cardLink}]`,
       fixVersions: parentEpic.fields.fixVersions ? parentEpic.fields.fixVersions.map(fv => {
         return {
           id: fv.id

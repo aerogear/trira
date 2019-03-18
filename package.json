@@ -26,8 +26,9 @@
   "dependencies": {
     "common-tags": "^1.4.0",
     "jira-client": "^4.2.0",
-    "object-path": "^0.11.4",
     "json2csv": "^3.11.1",
+    "markdown2confluence-cws": "^2.0.4",
+    "object-path": "^0.11.4",
     "prettyjson": "^1.2.1",
     "trello": "^0.8.0",
     "winston": "^2.3.1",
