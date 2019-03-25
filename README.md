@@ -36,7 +36,7 @@ trira target <jiraHost> --trello-key=<trello-key> --trello-token=<trello-token> 
 trira sync <trello-board-regexp> <jira-epic-name-or-key> --list-regexp '.*'
 ```
 
-There are further options available, such as which Trello columns will be synced or a card name regular expression for more granular filtering. For more details about command usage, run:
+There are further options available, such as which Trello columns will be synced or a card name regular expression for more granular filtering, custom prefix of the card names, etc. For more details about command usage, run:
 ```
 trira help sync
 ```
