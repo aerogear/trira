@@ -38,6 +38,10 @@ const builder = function (yargs) {
       describe: 'Comma separated list of labels to be added to JIRA issues',
       default: undefined
     })
+    .option('prefix', {
+      describe: 'Prefix to be added at the beginning of each of the cards names',
+      default: ''
+    })
     .demand(2)
     .help('help')
     .wrap(null)
