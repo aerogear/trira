@@ -144,6 +144,8 @@ const handler = function(argv) {
       // converting comma separated list of labels to array
       const labels = argv.addLabels === undefined ? [] : new String(argv.addLabels).split(',')
       
+      const prefix = argv.prefix === undefined ? '' : argv.prefix
+
       return trelloCards.get(configuration.trello, argv.boardRegexp, argv.listRegexp, argv.cardRegexp)
         .then(cards => {
           logger.debug(`${argv.dryRun ? 'Would' : 'Will'} create ${cards.length} issues in JIRA`)
@@ -152,6 +154,7 @@ const handler = function(argv) {
             card.labels = card.labels.concat(labels)
             // removing duplicates and empty items
             card.labels = [ ...new Set(card.labels)].filter(String)
+            card.summary = prefix + card.summary
           })
 
           return Promise.all([Promise.resolve(cards), argv.dryRun ? Promise.resolve([]) : pushCardsToJira(cards, argv.epic, configuration.jira) ])
