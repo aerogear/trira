@@ -49,3 +49,4 @@ trira help sync
 * Tool ignores existing issues, hence every run creates new issues - instead of updating them
 * Tool creates issues where provided jira user acts as reporter
 * Story points are represented in Trello card name - in the beginning as a number in parentheses, such as (3)
+* Card description from Trello is converted from Trello markdown to JIRA markup language
